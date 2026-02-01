@@ -23,7 +23,6 @@ type OutboxProcessor struct {
 }
 
 func NewOutboxProcessor(
-	ctx context.Context,
 	txMgr *postgres.Manager,
 	repo repo.OutboxRepo,
 	publisher EventPublisher,

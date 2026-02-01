@@ -1,4 +1,4 @@
-package infrastructure
+package rabbitmq
 
 import (
 	"account-manager/pkg/rabbitmq"

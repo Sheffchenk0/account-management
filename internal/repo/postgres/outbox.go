@@ -18,7 +18,7 @@ func NewOutboxRepo(mgr *postgres.Manager) *OutboxRepo {
 	return &OutboxRepo{mgr}
 }
 
-func (r *OutboxRepo) SaveEvent(ctx context.Context, topic string, payload interface{}) error {
+func (r *OutboxRepo) Create(ctx context.Context, topic string, payload interface{}) error {
 	const op = "OutboxRepo.SaveEvent"
 	executor := r.mgr.GetExecutor(ctx)
 

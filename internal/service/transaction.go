@@ -1,4 +1,4 @@
-package usecase
+package service
 
 import (
 	"account-manager/internal/entity"
@@ -9,14 +9,14 @@ import (
 )
 
 type TransactionService struct {
-	txMgr postgres.Manager
+	txMgr *postgres.Manager
 
 	accountRepo     repo.AccountRepo
 	transactionRepo repo.TransactionRepo
 	outboxRepo      repo.OutboxRepo
 }
 
-func NewTransactionService(txMgr postgres.Manager, ar repo.AccountRepo, tr repo.TransactionRepo, or repo.OutboxRepo) *TransactionService {
+func NewTransactionService(txMgr *postgres.Manager, ar repo.AccountRepo, tr repo.TransactionRepo, or repo.OutboxRepo) *TransactionService {
 	return &TransactionService{
 		txMgr: txMgr,
 
@@ -48,7 +48,7 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, transaction 
 			return fmt.Errorf("%s: %w", op, entity.ErrInvalidTransactionType)
 		}
 
-		account, err = s.accountRepo.UpdateBalance(ctxTX, account.ID, account.Balance)
+		err = s.accountRepo.UpdateBalance(ctxTX, account.ID, account.Balance)
 		if err != nil {
 			return fmt.Errorf("%s: failed to update balance: %w", op, err)
 		}
