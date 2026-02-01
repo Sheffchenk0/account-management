@@ -17,8 +17,9 @@ type (
 	TransactionRepo interface {
 		Create(context.Context, entity.Transaction) (entity.Transaction, error)
 	}
-
 	OutboxRepo interface {
 		Create(ctx context.Context, topic string, payload interface{}) error
+		GetBatch(ctx context.Context, batchSize int) ([]entity.Outbox, error)
+		DeleteBatch(ctx context.Context, ids []uuid.UUID) error
 	}
 )
