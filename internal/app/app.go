@@ -1,6 +1,7 @@
 package app
 
 import (
+	"account-manager/config"
 	v1 "account-manager/internal/controller/http/v1"
 	"account-manager/internal/infrastructure/rabbitmq"
 	repoPG "account-manager/internal/repo/postgres"
@@ -20,12 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Config struct {
-	PGURL    string
-	RMQURL   string
-	HTTPPORT string
-}
-
 // TODO: move in cfg
 const (
 	exchangeName           = "account_events"
@@ -35,14 +30,14 @@ const (
 	writeTimeOutS          = 10
 )
 
-func Run(cfg *Config) error {
-	pgPool, err := postgres.New(cfg.PGURL)
+func Run(cfg *config.Config) error {
+	pgPool, err := postgres.New(cfg.PG.URL)
 	if err != nil {
 		return fmt.Errorf("postgres init: %w", err)
 	}
 	defer pgPool.Close()
 
-	rmqConn, err := rmqPkg.New(cfg.RMQURL)
+	rmqConn, err := rmqPkg.New(cfg.RMQ.Url)
 	if err != nil {
 		return fmt.Errorf("rabbitmq init: %w", err)
 	}
@@ -84,7 +79,7 @@ func Run(cfg *Config) error {
 	}
 
 	server := &http.Server{
-		Addr:         ":" + cfg.HTTPPORT,
+		Addr:         ":" + cfg.HTTP.Port,
 		Handler:      handler,
 		ReadTimeout:  readTimeOutS * time.Second,
 		WriteTimeout: writeTimeOutS * time.Second,

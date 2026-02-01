@@ -1,10 +1,19 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"account-manager/config"
+	"account-manager/internal/app"
+	"log"
 )
 
 func main() {
-	router := gin.Default()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Config error: %s", err)
+	}
+
+	if err := app.Run(cfg); err != nil {
+		log.Fatalf("Application failed: %s", err)
+	}
 
 }
