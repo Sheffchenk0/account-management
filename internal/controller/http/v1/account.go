@@ -11,8 +11,7 @@ import (
 )
 
 type createAccountRequest struct {
-	ID       string `json:"id" binding:"required,uuid"`
-	ClientID string `json:"client_id" binding:"required,uuid"`
+	ID string `json:"id" binding:"required,uuid"`
 }
 
 type AccountHandler struct {
@@ -30,14 +29,13 @@ func (h *AccountHandler) RegisterRoutes(r *gin.RouterGroup) {
 
 // Create creates a new account
 // @Summary Create account
-// @Description Create a new account for a client
+// @Description Create a new account
 // @Tags accounts
 // @Accept json
 // @Produce json
 // @Param request body createAccountRequest true "Account creation request"
 // @Success 201 {object} map[string]interface{} "Account created"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
-// @Failure 404 {object} map[string]interface{} "Client not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /accounts [post]
 func (h *AccountHandler) Create(c *gin.Context) {
@@ -50,8 +48,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 
 	account := entity.Account{
-		ID:       uuid.MustParse(req.ID),
-		ClientID: uuid.MustParse(req.ClientID),
+		ID: uuid.MustParse(req.ID),
 	}
 
 	createdAccount, err := h.service.CreateAccount(c.Request.Context(), account)
@@ -102,8 +99,6 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 
 func (h *AccountHandler) handleError(c *gin.Context, err error, op string) {
 	switch {
-	case errors.Is(err, entity.ErrClientNotFound):
-		c.JSON(http.StatusBadRequest, gin.H{"error": "client not found"})
 	case errors.Is(err, entity.ErrAccountNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
 	default:

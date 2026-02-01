@@ -26,20 +26,17 @@ func (r *AccountRepo) Create(ctx context.Context, account entity.Account) (entit
 	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
-		INSERT INTO accounts (id, client_id) VALUES ($1, $2)
+		INSERT INTO accounts (id) VALUES ($1)
 		RETURNING id, balance, created_at
 	`
 
-	err := executor.QueryRow(ctx, sql, account.ID, account.ClientID).Scan(
+	err := executor.QueryRow(ctx, sql, account.ID).Scan(
 		&account.ID, &account.Balance, &account.CreatedAt,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			return entity.Account{}, fmt.Errorf("%s: %w", op, entity.ErrDuplicateTransaction)
-		}
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.ForeignKeyViolation {
-			return entity.Account{}, fmt.Errorf("%s: %w", op, entity.ErrClientNotFound)
 		}
 		return entity.Account{}, fmt.Errorf("%s: %w", op, err)
 	}
@@ -52,13 +49,13 @@ func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Account
 	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
-		SELECT id, balance, client_id, created_at FROM accounts
+		SELECT id, balance, created_at FROM accounts
 		WHERE id = $1
 	`
 	var account entity.Account
 
 	err := executor.QueryRow(ctx, sql, id).Scan(
-		&account.ID, &account.Balance, &account.ClientID, &account.CreatedAt,
+		&account.ID, &account.Balance, &account.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -75,14 +72,14 @@ func (r *AccountRepo) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entit
 	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
-		SELECT id, balance, client_id, created_at FROM accounts
+		SELECT id, balance, created_at FROM accounts
 		WHERE id = $1
 		FOR UPDATE
 	`
 	var account entity.Account
 
 	err := executor.QueryRow(ctx, sql, id).Scan(
-		&account.ID, &account.Balance, &account.ClientID, &account.CreatedAt,
+		&account.ID, &account.Balance, &account.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

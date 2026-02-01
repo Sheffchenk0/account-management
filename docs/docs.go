@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/accounts": {
             "post": {
-                "description": "Create a new account for a client",
+                "description": "Create a new account",
                 "consumes": [
                     "application/json"
                 ],
@@ -49,13 +49,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Client not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -200,13 +193,9 @@ const docTemplate = `{
         "v1.createAccountRequest": {
             "type": "object",
             "required": [
-                "client_id",
                 "id"
             ],
             "properties": {
-                "client_id": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "string"
                 }
@@ -216,6 +205,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "account_id",
+                "amount",
                 "id",
                 "type"
             ],
@@ -241,6 +231,7 @@ const docTemplate = `{
     }
 }`
 
+// SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "",
 	Host:             "",

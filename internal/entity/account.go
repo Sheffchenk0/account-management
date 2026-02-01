@@ -7,8 +7,7 @@ import (
 type Account struct {
 	ID        uuid.UUID `db:"id"`
 	Balance   int64     `db:"balance"`
-	ClientID  uuid.UUID `db:"client_id"`
-	CreatedAt string    `db:"created_at"`
+	CreatedAt int64     `db:"created_at"`
 }
 
 func (a *Account) Debit(amount int64) error {
