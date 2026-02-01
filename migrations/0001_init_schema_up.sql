@@ -38,9 +38,9 @@ CREATE TABLE IF NOT EXISTS outbox (
     topic VARCHAR(255) NOT NULL,
     payload JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() 
-) 
+);
 
-CREATE INDEX idx_outbox_created_at ON outbox(created_at)
+CREATE INDEX idx_outbox_created_at ON outbox(created_at);
 -- +goose StatementEnd
 
 -- +goose Down
