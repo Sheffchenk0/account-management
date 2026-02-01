@@ -1,13 +1,15 @@
 package entity
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
 type Account struct {
 	ID        uuid.UUID `db:"id"`
 	Balance   int64     `db:"balance"`
-	CreatedAt int64     `db:"created_at"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 func (a *Account) Debit(amount int64) error {

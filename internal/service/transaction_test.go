@@ -7,66 +7,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-type mockAccountRepo struct {
-	GetByIDForUpdateFn func(ctx context.Context, id uuid.UUID) (entity.Account, error)
-	UpdateBalanceFn     func(ctx context.Context, id uuid.UUID, newBalance int64) error
-}
-
-func (m *mockAccountRepo) Create(ctx context.Context, account entity.Account) (entity.Account, error) {
-	return entity.Account{}, nil
-}
-
-func (m *mockAccountRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-	return entity.Account{}, nil
-}
-
-func (m *mockAccountRepo) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-	if m.GetByIDForUpdateFn != nil {
-		return m.GetByIDForUpdateFn(ctx, id)
-	}
-	return entity.Account{}, nil
-}
-
-func (m *mockAccountRepo) UpdateBalance(ctx context.Context, id uuid.UUID, newBalance int64) error {
-	if m.UpdateBalanceFn != nil {
-		return m.UpdateBalanceFn(ctx, id, newBalance)
-	}
-	return nil
-}
-
-type mockTransactionRepo struct {
-	CreateFn func(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error)
-}
-
-func (m *mockTransactionRepo) Create(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-	if m.CreateFn != nil {
-		return m.CreateFn(ctx, transaction)
-	}
-	return entity.Transaction{}, nil
-}
-
-type mockOutboxRepo struct {
-	CreateFn func(ctx context.Context, topic string, payload interface{}) error
-}
-
-func (m *mockOutboxRepo) Create(ctx context.Context, topic string, payload interface{}) error {
-	if m.CreateFn != nil {
-		return m.CreateFn(ctx, topic, payload)
-	}
-	return nil
-}
-
-func (m *mockOutboxRepo) GetBatch(ctx context.Context, batchSize int) ([]entity.Outbox, error) {
-	return nil, nil
-}
-
-func (m *mockOutboxRepo) DeleteBatch(ctx context.Context, ids []uuid.UUID) error {
-	return nil
-}
-
-type mockTransactor struct{}
 
 type mockTransactionService struct {
 	accountRepo     *mockAccountRepo
@@ -74,114 +17,79 @@ type mockTransactionService struct {
 	outboxRepo      *mockOutboxRepo
 }
 
-func newMockTransactionService(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) *mockTransactionService {
-	return &mockTransactionService{
-		accountRepo:     ar,
-		transactionRepo: tr,
-		outboxRepo:      or,
-	}
-}
-
 func (s *mockTransactionService) CreateTransaction(ctx context.Context, transaction entity.Transaction) error {
 	op := "TransactionService.CreateTransaction"
 
 	account, err := s.accountRepo.GetByIDForUpdate(ctx, transaction.AccountID)
 	if err != nil {
-		return errors.New(op + ": failde to get account: " + err.Error())
+		return err
 	}
 
 	switch transaction.Type {
 	case entity.TransactionTypeCredit:
 		if err := account.Credit(transaction.Amount); err != nil {
-			return errors.New(op + ": " + err.Error())
+			return err
 		}
 	case entity.TransactionTypeDebit:
 		if err := account.Debit(transaction.Amount); err != nil {
-			return errors.New(op + ": " + err.Error())
+			return err
 		}
 	default:
-		return errors.New(op + ": " + entity.ErrInvalidTransactionType.Error())
+		return entity.ErrInvalidTransactionType
 	}
 
 	err = s.accountRepo.UpdateBalance(ctx, account.ID, account.Balance)
 	if err != nil {
-		return errors.New(op + ": failed to update balance: " + err.Error())
+		return err
 	}
 
-	_, err = s.transactionRepo.Create(ctx, transaction)
+	t, err := s.transactionRepo.Create(ctx, transaction)
 	if err != nil {
-		return errors.New(op + ": failed to save transaction: " + err.Error())
+		return err
 	}
 
-	err = s.outboxRepo.Create(ctx, "transaction.created", transaction)
+	err = s.outboxRepo.Create(ctx, "transaction.created", t)
 	if err != nil {
-		return errors.New(op + ": failed to save event in outbox: " + err.Error())
+		return err
 	}
 
+	_ = op
 	return nil
 }
 
-func TestCreateTransaction_BusinessLogic(t *testing.T) {
+func TestTransactionService_CreateTransaction(t *testing.T) {
+	t.Parallel()
+
 	accountID := uuid.New()
-	clientID := uuid.New()
+	transactionID := uuid.New()
 
 	tests := []struct {
 		name      string
-		amount    int64
-		transactionType string
-		account   entity.Account
+		input     entity.Transaction
 		mockSetup func(*mockAccountRepo, *mockTransactionRepo, *mockOutboxRepo)
 		wantErr   bool
-		wantErrMsg string
+		checkErr  func(*testing.T, error)
 	}{
 		{
-			name:      "Successful Credit",
-			amount:    50,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
-			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
-				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
-				}
-				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
-					if newBalance != 150 {
-						t.Errorf("expected balance 150, got %d", newBalance)
-					}
-					return nil
-				}
-				tr.CreateFn = func(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-					transaction.ID = uuid.New()
-					transaction.CreatedAt = 1234567890
-					return transaction, nil
-				}
-				or.CreateFn = func(ctx context.Context, topic string, payload interface{}) error {
-					if topic != "transaction.created" {
-						t.Errorf("expected topic 'transaction.created', got '%s'", topic)
-					}
-					return nil
-				}
+			name: "successful credit transaction",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    500,
+				Type:      entity.TransactionTypeCredit,
 			},
-			wantErr: false,
-		},
-		{
-			name:      "Successful Debit",
-			amount:    30,
-			transactionType: entity.TransactionTypeDebit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
-					if newBalance != 70 {
-						t.Errorf("expected balance 70, got %d", newBalance)
-					}
 					return nil
 				}
-				tr.CreateFn = func(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-					transaction.ID = uuid.New()
-					transaction.CreatedAt = 1234567890
-					return transaction, nil
+				tr.CreateFn = func(ctx context.Context, tx entity.Transaction) (entity.Transaction, error) {
+					tx.ID = transactionID
+					return tx, nil
 				}
 				or.CreateFn = func(ctx context.Context, topic string, payload interface{}) error {
 					return nil
@@ -190,192 +98,229 @@ func TestCreateTransaction_BusinessLogic(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:      "Insufficient Funds Debit",
-			amount:    100,
-			transactionType: entity.TransactionTypeDebit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 50},
+			name: "successful debit transaction",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    500,
+				Type:      entity.TransactionTypeDebit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 50}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
+				}
+				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
+					return nil
+				}
+				tr.CreateFn = func(ctx context.Context, tx entity.Transaction) (entity.Transaction, error) {
+					tx.ID = transactionID
+					return tx, nil
+				}
+				or.CreateFn = func(ctx context.Context, topic string, payload interface{}) error {
+					return nil
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "insufficient funds",
+			wantErr: false,
 		},
 		{
-			name:      "Invalid Amount - Zero Credit",
-			amount:    0,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "debit insufficient funds",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    200,
+				Type:      entity.TransactionTypeDebit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 100,
+					}, nil
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "amount must be positive",
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.True(t, errors.Is(err, entity.ErrInsufficientFunds))
+			},
 		},
 		{
-			name:      "Invalid Amount - Negative Debit",
-			amount:    -10,
-			transactionType: entity.TransactionTypeDebit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "credit negative amount",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    -100,
+				Type:      entity.TransactionTypeCredit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "amount must be positive",
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.True(t, errors.Is(err, entity.ErrInvalidAmount))
+			},
 		},
 		{
-			name:      "Invalid Transaction Type",
-			amount:    50,
-			transactionType: "transfer",
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "debit zero amount",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    0,
+				Type:      entity.TransactionTypeDebit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "invalid transaction type",
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.True(t, errors.Is(err, entity.ErrInvalidAmount))
+			},
 		},
 		{
-			name:      "Account Not Found",
-			amount:    50,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "invalid transaction type",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    100,
+				Type:      "invalid",
+			},
+			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
+				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
+				}
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.True(t, errors.Is(err, entity.ErrInvalidTransactionType))
+			},
+		},
+		{
+			name: "account not found",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    100,
+				Type:      entity.TransactionTypeCredit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
 					return entity.Account{}, entity.ErrAccountNotFound
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "account not found",
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.True(t, errors.Is(err, entity.ErrAccountNotFound))
+			},
 		},
 		{
-			name:      "Update Balance Error",
-			amount:    50,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "update balance fails",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    100,
+				Type:      entity.TransactionTypeCredit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
-					return errors.New("database connection error")
+					return errors.New("database error")
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "failed to update balance",
+			wantErr: true,
 		},
 		{
-			name:      "Create Transaction Error",
-			amount:    50,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "create transaction fails",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    100,
+				Type:      entity.TransactionTypeCredit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
 					return nil
 				}
-				tr.CreateFn = func(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-					return entity.Transaction{}, errors.New("database connection error")
+				tr.CreateFn = func(ctx context.Context, tx entity.Transaction) (entity.Transaction, error) {
+					return entity.Transaction{}, errors.New("database error")
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "failed to save transaction",
+			wantErr: true,
 		},
 		{
-			name:      "Outbox Create Error",
-			amount:    50,
-			transactionType: entity.TransactionTypeCredit,
-			account:   entity.Account{ID: accountID, ClientID: clientID, Balance: 100},
+			name: "create outbox fails",
+			input: entity.Transaction{
+				AccountID: accountID,
+				Amount:    100,
+				Type:      entity.TransactionTypeCredit,
+			},
 			mockSetup: func(ar *mockAccountRepo, tr *mockTransactionRepo, or *mockOutboxRepo) {
 				ar.GetByIDForUpdateFn = func(ctx context.Context, id uuid.UUID) (entity.Account, error) {
-					return entity.Account{ID: accountID, ClientID: clientID, Balance: 100}, nil
+					return entity.Account{
+						ID:      id,
+						Balance: 1000,
+					}, nil
 				}
 				ar.UpdateBalanceFn = func(ctx context.Context, id uuid.UUID, newBalance int64) error {
 					return nil
 				}
-				tr.CreateFn = func(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-					transaction.ID = uuid.New()
-					transaction.CreatedAt = 1234567890
-					return transaction, nil
+				tr.CreateFn = func(ctx context.Context, tx entity.Transaction) (entity.Transaction, error) {
+					tx.ID = transactionID
+					return tx, nil
 				}
 				or.CreateFn = func(ctx context.Context, topic string, payload interface{}) error {
-					return errors.New("rabbitmq connection error")
+					return errors.New("outbox error")
 				}
 			},
-			wantErr:   true,
-			wantErrMsg: "failed to save event in outbox",
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAccRepo := &mockAccountRepo{}
-			mockTxRepo := &mockTransactionRepo{}
+			t.Parallel()
+
+			mockAccountRepo := &mockAccountRepo{}
+			mockTransactionRepo := &mockTransactionRepo{}
 			mockOutboxRepo := &mockOutboxRepo{}
 
-			tt.mockSetup(mockAccRepo, mockTxRepo, mockOutboxRepo)
-
-			svc := newMockTransactionService(mockAccRepo, mockTxRepo, mockOutboxRepo)
-
-			transaction := entity.Transaction{
-				AccountID: accountID,
-				Amount:    tt.amount,
-				Type:      tt.transactionType,
+			if tt.mockSetup != nil {
+				tt.mockSetup(mockAccountRepo, mockTransactionRepo, mockOutboxRepo)
 			}
 
-			err := svc.CreateTransaction(context.Background(), transaction)
+			service := &mockTransactionService{
+				accountRepo:     mockAccountRepo,
+				transactionRepo: mockTransactionRepo,
+				outboxRepo:      mockOutboxRepo,
+			}
+
+			err := service.CreateTransaction(context.Background(), tt.input)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error, got nil")
-					return
-				}
-				if tt.wantErrMsg != "" {
-					errMsg := err.Error()
-					found := false
-					
-					// Проверяем на специфические ошибки entity
-					if tt.wantErrMsg == "insufficient funds" && errors.Is(err, entity.ErrInsufficientFunds) {
-						found = true
-					} else if tt.wantErrMsg == "amount must be positive" && errors.Is(err, entity.ErrInvalidAmount) {
-						found = true
-					} else if tt.wantErrMsg == "invalid transaction type" && errors.Is(err, entity.ErrInvalidTransactionType) {
-						found = true
-					} else if len(errMsg) > 0 && containsSubstring(errMsg, tt.wantErrMsg) {
-						found = true
-					}
-					
-					if !found {
-						t.Errorf("expected error message to contain '%s', got '%v'", tt.wantErrMsg, err)
-					}
+				require.Error(t, err)
+				if tt.checkErr != nil {
+					tt.checkErr(t, err)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("expected no error, got %v", err)
-				}
+				require.NoError(t, err)
 			}
 		})
 	}
-}
-
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 const (
 	TransactionTypeDebit  = "debit"
@@ -12,5 +16,5 @@ type Transaction struct {
 	AccountID uuid.UUID `db:"account_id"`
 	Amount    int64     `db:"amount"`
 	Type      string    `db:"type"`
-	CreatedAt int64     `db:"created_at"`
+	CreatedAt time.Time `db:"created_at"`
 }
