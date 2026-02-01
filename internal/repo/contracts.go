@@ -10,6 +10,7 @@ import (
 type (
 	AccountRepo interface {
 		Create(context.Context, entity.Account) (entity.Account, error)
+		GetByID(ctx context.Context, id uuid.UUID) (entity.Account, error)
 		GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entity.Account, error)
 		UpdateBalance(ctx context.Context, id uuid.UUID, newBalance int64) error
 	}

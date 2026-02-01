@@ -18,10 +18,10 @@ type createTransactionRequest struct {
 }
 
 type TransactionHandler struct {
-	service service.TransactionService
+	service *service.TransactionService
 }
 
-func NewTransactionHandler(service service.TransactionService) *TransactionHandler {
+func NewTransactionHandler(service *service.TransactionService) *TransactionHandler {
 	return &TransactionHandler{service}
 }
 
@@ -48,6 +48,7 @@ func (h *TransactionHandler) Create(c *gin.Context) {
 	err := h.service.CreateTransaction(c.Request.Context(), transaction)
 	if err != nil {
 		h.handleError(c, err, op)
+		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -75,5 +76,4 @@ func (h *TransactionHandler) handleError(c *gin.Context, err error, op string) {
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
-	return
 }

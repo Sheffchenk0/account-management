@@ -61,6 +61,8 @@ func Run(cfg *config.Config) error {
 		outboxRepo,
 	)
 
+	accountService := service.NewAccountService(txMgr, accountRepo)
+
 	outboxProcessor := worker.NewOutboxProcessor(
 		txMgr,
 		outboxRepo,
@@ -74,8 +76,11 @@ func Run(cfg *config.Config) error {
 
 	v1Group := handler.Group("/v1")
 	{
-		transactionHandler := v1.NewTransactionHandler(*transactionService)
+		transactionHandler := v1.NewTransactionHandler(transactionService)
 		transactionHandler.RegisterRoutes(v1Group)
+
+		accountHandler := v1.NewAccountHandler(accountService)
+		accountHandler.RegisterRoutes(v1Group)
 	}
 
 	server := &http.Server{
