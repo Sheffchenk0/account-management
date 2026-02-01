@@ -13,6 +13,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID) (entity.Account, error)
 		GetBalanceById(ctx context.Context, id uuid.UUID) (int64, error)
 		GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entity.Account, error)
+		UpdateBalance(ctx context.Context, id uuid.UUID) (entity.Account, error)
 	}
 
 	TransactionRepo interface {
