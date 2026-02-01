@@ -40,22 +40,22 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/pg_data
     healthcheck:
-      test: ["CMD-shell", "pg_isready -U user -d account_db"]
+      test: ["CMD-SHELL", "pg_isready -U user -d account_db"]
       interval: 5s
       timeout: 5s
       retries: 5
     
   rabbitmq:
-  image: rabbitmq:3-management-alpine
-  container_name: account-rabbitmq
-  ports:
-    - "5672:5672"
-    - "15672:15672"
-  healthcheck:
-    test: rabbitmq-diagnostics -q ping
-    interval: 5s
-    timeout: 10s
-    retries: 5
+    image: rabbitmq:3-management-alpine
+    container_name: account-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 10s
+      retries: 5
   
 volumes:
-  pg_data
+  pg_data:
