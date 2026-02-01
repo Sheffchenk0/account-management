@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: account-manager
+    ports:
+     - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PG_URL=postgres://user:pass@postgres:5432/account_db
+      - RMQ_URL=amqp://guest:guest@rabbitmq:5672/
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: account-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: account_db
+    volumes:
+      - pg_data:/var/lib/postgresql/pg_data
+    healthcheck:
+      test: ["CMD-shell", "pg_isready -U user -d account_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    
+  rabbitmq:
+  image: rabbitmq:3-management-alpine
+  container_name: account-rabbitmq
+  ports:
+    - "5672:5672"
+    - "15672:15672"
+  healthcheck:
+    test: rabbitmq-diagnostics -q ping
+    interval: 5s
+    timeout: 10s
+    retries: 5
+  
+volumes:
+  pg_data
