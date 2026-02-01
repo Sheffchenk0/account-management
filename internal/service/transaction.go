@@ -53,12 +53,12 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, transaction 
 			return fmt.Errorf("%s: failed to update balance: %w", op, err)
 		}
 
-		transaction, err := s.transactionRepo.Create(ctxTX, transaction)
+		t, err := s.transactionRepo.Create(ctxTX, transaction)
 		if err != nil {
 			return fmt.Errorf("%s: failed to save transaction: %w", op, err)
 		}
 
-		err = s.outboxRepo.Create(ctxTX, "transaction.created", transaction)
+		err = s.outboxRepo.Create(ctxTX, "transaction.created", t)
 		if err != nil {
 			return fmt.Errorf("%s: failed to save event in outbox: %w", op, err)
 		}
