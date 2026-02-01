@@ -1,6 +1,8 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type Account struct {
 	ID        uuid.UUID `db:"id"`
@@ -9,6 +11,23 @@ type Account struct {
 	CreatedAt string    `db:"created_at"`
 }
 
-func (a *Account) CanDebit(amount int64) bool {
-	return a.Balance >= amount
+func (a *Account) Debit(amount int64) error {
+	if amount <= 0 {
+		return ErrInvalidAmount
+	}
+	if a.Balance <= amount {
+		return ErrInsufficientFunds
+	}
+
+	a.Balance -= amount
+	return nil
+}
+
+func (a *Account) Credit(amount int64) error {
+	if amount <= 0 {
+		return ErrInvalidAmount
+	}
+
+	a.Balance += amount
+	return nil
 }

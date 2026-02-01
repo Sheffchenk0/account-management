@@ -10,14 +10,15 @@ import (
 type (
 	AccountRepo interface {
 		Create(context.Context, entity.Account) (entity.Account, error)
-		GetByID(ctx context.Context, id uuid.UUID) (entity.Account, error)
-		GetBalanceById(ctx context.Context, id uuid.UUID) (int64, error)
 		GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entity.Account, error)
-		UpdateBalance(ctx context.Context, id uuid.UUID) (entity.Account, error)
+		UpdateBalance(ctx context.Context, id uuid.UUID, newBalance int64) (entity.Account, error)
 	}
 
 	TransactionRepo interface {
-		Create(context.Context, entity.Account) error
-		GetByClientID(ctx context.Context, id uuid.UUID) (entity.Account, error)
+		Create(context.Context, entity.Transaction) (entity.Transaction, error)
+	}
+
+	OutboxRepo interface {
+		Create(ctx context.Context, topic string, payload interface{}) error
 	}
 )

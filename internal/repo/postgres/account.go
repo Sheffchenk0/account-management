@@ -14,16 +14,16 @@ import (
 )
 
 type AccountRepo struct {
-	mgr *postgres.Manager
+	txMgr *postgres.Manager
 }
 
-func NewAccountRepo(mgr *postgres.Manager) *AccountRepo {
-	return &AccountRepo{mgr}
+func NewAccountRepo(txMgr *postgres.Manager) *AccountRepo {
+	return &AccountRepo{txMgr}
 }
 
 func (r *AccountRepo) Create(ctx context.Context, account entity.Account) (entity.Account, error) {
 	const op = "AccountRepo.Create"
-	executor := r.mgr.GetExecutor(ctx)
+	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
 		INSERT INTO accounts (id, client_id) VALUES ($1, $2)
@@ -49,7 +49,7 @@ func (r *AccountRepo) Create(ctx context.Context, account entity.Account) (entit
 
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Account, error) {
 	const op = "AccountRepo.GetByID"
-	executor := r.mgr.GetExecutor(ctx)
+	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
 		SELECT id, balance, client_id, created_at FROM accounts
@@ -72,7 +72,7 @@ func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (entity.Account
 
 func (r *AccountRepo) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entity.Account, error) {
 	const op = "AccountRepo.GetByIDForUpdate"
-	executor := r.mgr.GetExecutor(ctx)
+	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
 		SELECT id, balance, client_id, created_at FROM accounts
@@ -96,7 +96,7 @@ func (r *AccountRepo) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (entit
 
 func (r *AccountRepo) UpdateBalance(ctx context.Context, id uuid.UUID, newBalance int64) error {
 	const op = "AccountRepo.UpdateBalance"
-	executor := r.mgr.GetExecutor(ctx)
+	executor := r.txMgr.GetExecutor(ctx)
 
 	sql := `
 		UPDATE accounts SET balance = $1 WHERE id = $2

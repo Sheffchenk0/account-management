@@ -9,8 +9,8 @@ const (
 
 type Transaction struct {
 	ID        uuid.UUID `db:"id"`
-	AccountID int64     `db:"account_id"`
-	Amount    string    `db:"amount"`
+	AccountID uuid.UUID `db:"account_id"`
+	Amount    int64     `db:"amount"`
 	Type      string    `db:"type"`
-	CreatedAt string    `db:"created_at"`
+	CreatedAt int64     `db:"created_at"`
 }
