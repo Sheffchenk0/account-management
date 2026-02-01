@@ -54,7 +54,7 @@ type Executor interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
-func (tm *Manager) getExecutor(ctx context.Context) Executor {
+func (tm *Manager) GetExecutor(ctx context.Context) Executor {
 	if tx, ok := ctx.Value(key{}).(pgx.Tx); ok {
 		return tx
 	}
