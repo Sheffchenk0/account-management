@@ -28,6 +28,18 @@ func (h *AccountHandler) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/accounts/:id", h.GetByID)
 }
 
+// Create creates a new account
+// @Summary Create account
+// @Description Create a new account for a client
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param request body createAccountRequest true "Account creation request"
+// @Success 201 {object} map[string]interface{} "Account created"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 404 {object} map[string]interface{} "Client not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /accounts [post]
 func (h *AccountHandler) Create(c *gin.Context) {
 	const op = "AccountHandler.Create"
 
@@ -54,6 +66,18 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	})
 }
 
+// GetByID retrieves an account by ID
+// @Summary Get account by ID
+// @Description Retrieve account details by account ID
+// @Tags accounts
+// @Accept json
+// @Produce json
+// @Param id path string true "Account ID"
+// @Success 200 {object} map[string]interface{} "Account details"
+// @Failure 400 {object} map[string]interface{} "Invalid account ID format"
+// @Failure 404 {object} map[string]interface{} "Account not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /accounts/{id} [get]
 func (h *AccountHandler) GetByID(c *gin.Context) {
 	const op = "AccountHandler.GetByID"
 

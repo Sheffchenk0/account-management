@@ -1,0 +1,156 @@
+definitions:
+  v1.createAccountRequest:
+    properties:
+      client_id:
+        type: string
+      id:
+        type: string
+    required:
+    - client_id
+    - id
+    type: object
+  v1.createTransactionRequest:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: integer
+      id:
+        type: string
+      type:
+        enum:
+        - credit
+        - debit
+        type: string
+    required:
+    - account_id
+    - id
+    - type
+    type: object
+info:
+  contact: {}
+paths:
+  /accounts:
+    post:
+      consumes:
+      - application/json
+      description: Create a new account for a client
+      parameters:
+      - description: Account creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.createAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Account created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Client not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create account
+      tags:
+      - accounts
+  /accounts/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve account details by account ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid account ID format
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Account not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get account by ID
+      tags:
+      - accounts
+  /transactions:
+    post:
+      consumes:
+      - application/json
+      description: Create a new credit or debit transaction for an account
+      parameters:
+      - description: Transaction creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.createTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction already processed
+          schema:
+            additionalProperties: true
+            type: object
+        "201":
+          description: Transaction created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Account not found
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: Insufficient funds
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create transaction
+      tags:
+      - transactions
+swagger: "2.0"

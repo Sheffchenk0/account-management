@@ -13,7 +13,7 @@ import (
 type createTransactionRequest struct {
 	ID        string `json:"id" binding:"required,uuid"`
 	AccountID string `json:"account_id" binding:"required,uuid"`
-	Amount    int64  `json:"amount" binding:"required gt=0"`
+	Amount    int64  `json:"amount" binding:"required,gt=0"`
 	Type      string `json:"type" binding:"required,oneof=credit debit"`
 }
 
@@ -29,6 +29,20 @@ func (h *TransactionHandler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/transactions", h.Create)
 }
 
+// Create creates a new transaction
+// @Summary Create transaction
+// @Description Create a new credit or debit transaction for an account
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param request body createTransactionRequest true "Transaction creation request"
+// @Success 201 {object} map[string]interface{} "Transaction created"
+// @Success 200 {object} map[string]interface{} "Transaction already processed"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 404 {object} map[string]interface{} "Account not found"
+// @Failure 422 {object} map[string]interface{} "Insufficient funds"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /transactions [post]
 func (h *TransactionHandler) Create(c *gin.Context) {
 	const op = "TransactionHandler.Create"
 

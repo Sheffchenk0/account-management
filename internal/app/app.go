@@ -18,7 +18,11 @@ import (
 	"syscall"
 	"time"
 
+	_ "account-manager/docs"
+
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // TODO: move in cfg
@@ -73,6 +77,8 @@ func Run(cfg *config.Config) error {
 
 	handler := gin.Default()
 	handler.Use(gin.Recovery())
+
+	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1Group := handler.Group("/v1")
 	{
