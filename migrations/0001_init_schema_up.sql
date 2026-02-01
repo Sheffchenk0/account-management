@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
@@ -39,3 +41,19 @@ CREATE TABLE IF NOT EXISTS outbox (
 ) 
 
 CREATE INDEX idx_outbox_created_at ON outbox(created_at)
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP INDEX IF EXISTS idx_transactions_account_id;
+DROP TABLE IF EXISTS transactions;
+
+DROP INDEX IF EXISTS idx_clientid;
+DROP INDEX IF EXISTS idx_clients_name_lastname;
+DROP TABLE IF EXISTS accounts;
+
+DROP TABLE IF EXISTS clients;
+
+DROP INDEX IF EXISTS idx_outbox_created_at;
+DROP TABLE IF EXISTS outbox;
+-- +goose StatementEnd

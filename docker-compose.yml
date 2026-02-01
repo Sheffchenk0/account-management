@@ -9,14 +9,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     env_file:
       - .env
     environment:
-      - PG_URL=postgres://user:pass@postgres:5432/account_db
+      - PG_URL=postgres://user:pass@postgres:5432/account_db?sslmode=disable
       - RMQ_URL=amqp://guest:guest@rabbitmq:5672/
-  
+
+  migrator:
+      build: .
+      command: /bin/goose -dir /root/migrations postgres "postgres://user:pass@postgres:5432/account_db?sslmode=disable" up
+      depends_on:
+        postgres:
+          condition: service_healthy
+      environment:
+        - PG_URL=postgres://user:pass@postgres:5432/account_db?sslmode=disable
+
   postgres:
     image: postgres:15-alpine
     container_name: account-postgres
