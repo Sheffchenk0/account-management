@@ -31,3 +31,11 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 CREATE INDEX idx_transactions_account_id ON transactions(account_id);
 
+CREATE TABLE IF NOT EXISTS outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic VARCHAR(255) NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() 
+) 
+
+CREATE INDEX idx_outbox_created_at ON outbox(created_at)
